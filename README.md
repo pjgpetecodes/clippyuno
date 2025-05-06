@@ -13,3 +13,10 @@ Create an appsettings.json file in the root and add the following;
 }
 
 ```
+
+Start via SSH with;
+
+```bash
+export DISPLAY=:0
+dotnet run -f net9.0-desktop
+```
