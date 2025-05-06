@@ -1,0 +1,23 @@
+﻿<Page x:Class="clippyuno.MainPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:clippyuno"
+      Background="#F3F1C8">
+  <ScrollViewer>
+    <Grid>
+      <StackPanel
+        HorizontalAlignment="Center"
+        VerticalAlignment="Center">
+          <TextBlock AutomationProperties.AutomationId="HelloTextBlock"
+            Text="{Binding LogMessage}"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            TextWrapping="Wrap"
+            FontSize="25"
+            FontStyle="Italic"
+            TextAlignment="Center"
+            Padding="20" />
+      </StackPanel>
+    </Grid>
+  </ScrollViewer>
+</Page>
