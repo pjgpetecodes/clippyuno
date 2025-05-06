@@ -1,4 +1,4 @@
-# Clippy Dot Net
+# Clippy Uno
 
 Create an appsettings.json file in the root and add the following;
 
