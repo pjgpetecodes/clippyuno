@@ -30,6 +30,11 @@ public sealed partial class MainPage : Page
 
     private static readonly LogViewModel logViewModel = new LogViewModel();
 
+    private static PwmChannel pwmChannel1;
+    private static PwmChannel pwmChannel2;
+    private static ServoMotor servoMotor1;
+    private static ServoMotor servoMotor2;
+
     public MainPage()
     {
         this.InitializeComponent();
@@ -66,18 +71,16 @@ public sealed partial class MainPage : Page
     private static async Task InitiliaseSignalR()
     {
 
-        using PwmChannel pwmChannel1 = PwmChannel.Create(0, 0, 50);
-        using ServoMotor servoMotor1 = new ServoMotor(pwmChannel1, 180, 700, 2400);
+        pwmChannel1 = PwmChannel.Create(0, 0, 50);
+        pwmChannel2 = PwmChannel.Create(0, 1, 50);
 
-        using PwmChannel pwmChannel2 = PwmChannel.Create(0, 1, 50);
-        using ServoMotor servoMotor2 = new ServoMotor(pwmChannel2, 180, 700, 2400);
-
-        using SoftwarePwmChannel pwmChannel3 = new SoftwarePwmChannel(27, 50, 0.5, true);
-        using ServoMotor servoMotor3 = new ServoMotor(pwmChannel3, 180, 900, 2100);
+        servoMotor1 = new ServoMotor(pwmChannel1, 180, 700, 2400);
+        servoMotor2 = new ServoMotor(pwmChannel2, 180, 700, 2400);
 
         servoMotor1.Start();
         servoMotor2.Start();
-        servoMotor3.Start();
+
+        MoveServosRandomly();
 
         // Retrieve Azure AD settings
         var clientId = Configuration["AzureAd:ClientId"];
@@ -141,9 +144,7 @@ public sealed partial class MainPage : Page
         Console.CancelKeyPress += async (sender, e) =>
         {
             Console.WriteLine("Disconnecting...");
-            servoMotor1.Stop();
-            servoMotor2.Stop();
-            servoMotor3.Stop();
+            DisposeResources();
             await hubConnection.DisposeAsync();
             Environment.Exit(0);
         };
@@ -160,6 +161,9 @@ public sealed partial class MainPage : Page
                 //await Task.Delay(5000);
 
                 //await RecognizeKeywordAsync();
+                MoveToAngle(servoMotor1, 0);
+                MoveToAngle(servoMotor2, 0);
+
             });
 
             hubConnection.On<string, string, string, bool, List<CognitiveSearchResult>>("ReceiveMessageToken", async (chatBubbleId, user, messageToken, isTemporaryResponse, sources) =>
@@ -222,6 +226,7 @@ public sealed partial class MainPage : Page
         var keywordModelPath = Configuration["AzureSpeech:KeywordModelPath"]; // Path to keyword model
 
         var config = SpeechConfig.FromSubscription(speechKey, serviceRegion);
+        //using var audioConfig = AudioConfig.FromMicrophoneInput("default:2"); // Use the correct device name for your microphone
         using var audioConfig = AudioConfig.FromDefaultMicrophoneInput();
         using var keywordRecognizer = new KeywordRecognizer(audioConfig);
 
@@ -260,6 +265,9 @@ public sealed partial class MainPage : Page
 
             logViewModel.LogMessage = responseText;
 
+            // Move servos randomly when responding to the keyword
+            MoveServosRandomly();
+
             await synthesizer.SpeakTextAsync(responseText);
 
             await RecognizeSpeechAsync();
@@ -288,10 +296,19 @@ public sealed partial class MainPage : Page
 
             logViewModel.LogMessage = "";
 
+            bool includePreviousMessages = true;
+
             if (result.Reason == ResultReason.RecognizedSpeech)
             {
                 Console.WriteLine($"Recognized: {result.Text}");
-                await hubConnection.SendAsync("SendQuery", "You are an AI model pretending to be the office Clippy. Respond like Clippy, and keep responses to a single paragraph. " + result.Text, chatMessages);
+                string clippyPersonaPrompt = "You are an AI model pretending to be the office Clippy. Respond like Clippy would but you are still a modern AI. Only return a maximum of 2 lines, and don't use empojis. ";
+                //await hubConnection.SendAsync("SendQuery", clippyPersonaPrompt + result.Text, chatMessages);
+
+                List<OpenAIChatMessage> previousMessages = new List<OpenAIChatMessage>();
+                previousMessages.AddRange(chatMessages);
+
+                chatMessages.Add(new OpenAIChatMessage {ChatBubbleId = Guid.NewGuid().ToString(),  Content = clippyPersonaPrompt + result.Text, Type = "human" });
+                await hubConnection.SendAsync("SendCogSearchQuery", clippyPersonaPrompt + result.Text, previousMessages, "", "");
             }
             else
             {
@@ -310,6 +327,9 @@ public sealed partial class MainPage : Page
     {
         try
         {
+            // Move servos randomly when responding to the keyword
+            MoveServosRandomly();
+
             var speechKey = Configuration["AzureSpeech:Key"];
             var serviceRegion = Configuration["AzureSpeech:Region"];
 
@@ -394,8 +414,34 @@ public sealed partial class MainPage : Page
         });
     }
 
+    private static void DisposeResources()
+    {
+        servoMotor1?.Stop();
+        servoMotor2?.Stop();
+        pwmChannel1?.Dispose();
+        pwmChannel2?.Dispose();
+    }
+
+    private static void MoveServosRandomly()
+    {
+        var random = new Random();
+        int angle1 = random.Next(0, 180);
+        int angle2 = random.Next(0, 180);
+
+        MoveToAngle(servoMotor1, angle1);
+        MoveToAngle(servoMotor2, angle2);
+    }
+
     static void MoveToAngle(ServoMotor Servo, int Angle)
     {
-        Servo.WriteAngle(Angle);
+        try
+        {
+            Servo.WriteAngle(Angle);
+            Console.WriteLine($"Servo moved to {Angle} degrees.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error moving servo: {ex.Message}");
+        }
     }
 }
