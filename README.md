@@ -1,5 +1,15 @@
 # Clippy Uno
 
+Taken from an awesome project from David Packman that you can find here;
+
+https://www.hackster.io/david-packman/clippygpt-6a683a
+
+# What is it?
+
+This is a CLippy that connects to my Supercharge your Data with Azure OpenAI, AI Search and Blazor.
+
+# Setup
+
 Create an appsettings.json file in the root and add the following;
 
 ```JSON

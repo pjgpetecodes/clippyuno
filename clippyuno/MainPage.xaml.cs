@@ -59,7 +59,6 @@ public sealed partial class MainPage : Page
             await InitiliaseSignalR();
             logViewModel.LogMessage = "SignalR initialized successfully.";
 
-            logViewModel.LogMessage = "Listening for keywords...";
             await RecognizeKeywordAsync();
         }
         catch (Exception ex)
@@ -79,6 +78,10 @@ public sealed partial class MainPage : Page
 
         servoMotor1.Start();
         servoMotor2.Start();
+
+        MoveToAngle(servoMotor1, 110);
+        MoveToAngle(servoMotor2, 110);
+        await Task.Delay(1000); // Wait for servos to initialize
 
         MoveServosRandomly();
 
@@ -221,6 +224,8 @@ public sealed partial class MainPage : Page
 
     private static async Task RecognizeKeywordAsync()
     {
+        logViewModel.LogMessage = "Listening for keywords...";
+        
         var speechKey = Configuration["AzureSpeech:Key"];
         var serviceRegion = Configuration["AzureSpeech:Region"];
         var keywordModelPath = Configuration["AzureSpeech:KeywordModelPath"]; // Path to keyword model
@@ -301,13 +306,13 @@ public sealed partial class MainPage : Page
             if (result.Reason == ResultReason.RecognizedSpeech)
             {
                 Console.WriteLine($"Recognized: {result.Text}");
-                string clippyPersonaPrompt = "You are an AI model pretending to be the office Clippy. Respond like Clippy would but you are still a modern AI. Only return a maximum of 2 lines, and don't use empojis. ";
+                string clippyPersonaPrompt = "You are an AI model pretending to be the office Clippy. Respond like Clippy would without repeating the original question. You are still a modern AI. Only return a maximum of 2 lines, and don't use empojis. ";
                 //await hubConnection.SendAsync("SendQuery", clippyPersonaPrompt + result.Text, chatMessages);
 
                 List<OpenAIChatMessage> previousMessages = new List<OpenAIChatMessage>();
                 previousMessages.AddRange(chatMessages);
 
-                chatMessages.Add(new OpenAIChatMessage {ChatBubbleId = Guid.NewGuid().ToString(),  Content = clippyPersonaPrompt + result.Text, Type = "human" });
+                chatMessages.Add(new OpenAIChatMessage { ChatBubbleId = Guid.NewGuid().ToString(), Content = clippyPersonaPrompt + result.Text, Type = "human" });
                 await hubConnection.SendAsync("SendCogSearchQuery", clippyPersonaPrompt + result.Text, previousMessages, "", "");
             }
             else
@@ -421,12 +426,11 @@ public sealed partial class MainPage : Page
         pwmChannel1?.Dispose();
         pwmChannel2?.Dispose();
     }
-
     private static void MoveServosRandomly()
     {
         var random = new Random();
-        int angle1 = random.Next(0, 180);
-        int angle2 = random.Next(0, 180);
+        int angle1 = random.Next(0, 2) == 0 ? 110 : 170;
+        int angle2 = random.Next(0, 2) == 0 ? 110 : 170;
 
         MoveToAngle(servoMotor1, angle1);
         MoveToAngle(servoMotor2, angle2);
